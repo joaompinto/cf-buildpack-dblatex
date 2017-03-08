@@ -5,7 +5,7 @@ This is a [Heroku buildpack](http://devcenter.heroku.com/articles/buildpacks) fo
 
     $ ls
 
-    $ heroku create --buildpack git://github.com/syphar/heroku-buildpack-tex.git
+    $ heroku create --buildpack https://github.com/joaompinto/heroku-buildpack-dblatex
 
     $ git push heroku master
     ...
@@ -19,23 +19,6 @@ having to build or install it yourself. You can pull it up on your instance
 easily in bash:
 
     $ heroku run bash
-
-Multipacks
-----------
-
-More likely, you'll want to use it as part of a larger project, which needs to
-build PDFs. The easiest way to do this is with a [multipack](https://github.com/ddollar/heroku-buildpack-multi),
-where this is just one of the buildpacks you'll be working with.
-
-    $ cat .buildpacks
-    git://github.com/heroku/heroku-buildpack-python.git
-    git://github.com/holiture/heroku-buildpack-tex.git
-
-    $ heroku config:add BUILDPACK_URL=git://github.com/ddollar/heroku-buildpack-multi.git
-
-This will bundle TeX Live into your instance without impacting your existing
-system. You can then call out to executables like `pdflatex` as you would on
-any other machine.
 
 How does it work?
 -----------------
