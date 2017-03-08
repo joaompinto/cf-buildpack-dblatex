@@ -130,4 +130,4 @@ if [ ! `which pdflatex` ]; then
 fi
 
 # Set up the environment for runtimes now that compilation has finished
-echo 'export PATH=$HOME/.texlive/bin/x86_64-linux:$PATH' >> $PROFILE_D
+echo 'export PATH=$HOME/.texlive/bin/x86_64-linux:$HOME/.dblatex/bin:$PATH' >> $PROFILE_D
