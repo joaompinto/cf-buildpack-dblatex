@@ -19,8 +19,6 @@ DBLATEX_HOME=$BUILD_DIR/.dblatex
 DBLATEX_CACHE=$CACHE_DIR/.dblatex
 PATH=$TEXLIVE_HOME/bin/x86_64-linux:$TOOL_BIN:$DBLATEX_HOME/bin:$PATH
 
-
-
 # Output helpers
 source $BIN_DIR/utils
 
@@ -111,6 +109,7 @@ if [ ! `which dblatex` ]; then
     cd $WGET_BUILD/dblatex-0.3.9
     patch -p1 < $BIN_DIR/20_xmultirow.patch
     python setup.py install --prefix=$DBLATEX_HOME
+    cp -v $BIN_DIR/../dblatex $DBLATEX_HOME/bin
 fi
 
 
