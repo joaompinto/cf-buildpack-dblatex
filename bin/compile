@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+# bin/compile <build-dir> <cache-dir>
+
+# fail fast
+set -eu
+
+BUILD_DIR=$1
+CACHE_DIR=$2
+BIN_DIR=$(cd $(dirname $0); pwd) # absolute path
+
+TEXLIVE_INSTALLER_URL="http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz"
+WGET_BUILD=/tmp/build
+TEXLIVE_HOME=$BUILD_DIR/.texlive
+TEXLIVE_CACHE=$CACHE_DIR/.texlive
+TOOL_CACHE=$CACHE_DIR/.tools 
+TOOL_BIN=$CACHE_DIR/.tools/bin
+PROFILE_D=$BUILD_DIR/.profile.d/texlive.sh
+DBLATEX_HOME=$BUILD_DIR/.dblatex
+DBLATEX_CACHE=$CACHE_DIR/.dblatex
+PATH=$TEXLIVE_HOME/bin/x86_64-linux:$TOOL_BIN:$DBLATEX_HOME/bin:$PATH
+
+
+
+# Output helpers
+source $BIN_DIR/utils
+
+# Prepare the various paths
+mkdir -p $TEXLIVE_HOME
+mkdir -p $TEXLIVE_CACHE
+mkdir -p $DBLATEX_HOME $DBLATEX_CACHE
+mkdir -p $TOOL_BIN 
+mkdir -p $TOOL_CACHE
+mkdir -p `dirname $PROFILE_D`
+
+if [ ! `which wget` ]; then
+    build-step "compiling wget"
+
+    build-info "download"
+    WGET_BUILD=/tmp/wget-build/
+    WGET_URL="http://ftp.gnu.org/gnu/wget/wget-1.16.tar.gz"
+    mkdir -p $WGET_BUILD 
+    cd $WGET_BUILD
+    curl $WGET_URL -L -s -o - | tar -xzf - -C $WGET_BUILD
+
+    cd wget-1.16
+    build-info "configure"
+    ./configure --prefix=$CACHE_DIR/.tools/wget --without-ssl > /tmp/wget_configure 2>&1
+
+    build-info "make"
+    make > /tmp/wget_make 2>&1
+
+    build-info "make install"
+    make install > /tmp/wget_make_install 2>&1
+
+    cp $CACHE_DIR/.tools/wget/bin/wget $TOOL_BIN/
+fi
+
+if [ "$(ls -A $TEXLIVE_CACHE)" ]; then
+    cp -R $TEXLIVE_CACHE/* $TEXLIVE_HOME
+fi
+
+if [ ! -f $TEXLIVE_HOME/install-tl ]; then
+    build-step "getting install-tl"
+    curl $TEXLIVE_INSTALLER_URL -L -s -o - | tar --strip-components=1 -xzf - -C $TEXLIVE_HOME
+fi
+
+if [ ! `which pdflatex` ]; then
+    build-step "Installing TeX Live"
+    cp $BIN_DIR/../conf/texlive.profile $BUILD_DIR
+    PROF=$BUILD_DIR/texlive.profile
+
+    echo "TEXDIR $TEXLIVE_HOME" >> $PROF 
+    echo "TEXMFCONFIG $TEXLIVE_HOME/var/texmf-config" >> $PROF
+    echo "TEXMFHOME $TEXLIVE_HOME/var/texmf" >> $PROF 
+    echo "TEXMFLOCAL $TEXLIVE_HOME/texmf-local" >> $PROF 
+    echo "TEXMFSYSCONFIG $TEXLIVE_HOME/texmf-config" >> $PROF 
+    echo "TEXMFSYSVAR $TEXLIVE_HOME/texmf-var" >> $PROF 
+    echo "TEXMFVAR $TEXLIVE_HOME/var/texmf-var" >> $PROF 
+
+    cd $TEXLIVE_HOME 
+
+    ./install-tl --profile=$PROF
+    # install user-provided-packages
+    PACKAGES_FILE=$BIN_DIR/../conf/texlive.packages
+    if [ -f $PACKAGES_FILE ]; then
+         build-step "installed custom packages"
+         tlmgr install $(cat $PACKAGES_FILE)
+    fi
+
+    tlmgr update --self
+
+    build-step "upgrading installed packages"
+    tlmgr update --all
+
+fi
+
+
+if [ "$(ls -A $DBLATEX_CACHE)" ]; then
+    cp -R $DBLATEX_CACHE/* $DBLATEX_HOME
+fi
+
+
+if [ ! `which dblatex` ]; then
+    build-step "Installing dblatex"
+    WGET_URL="https://downloads.sourceforge.net/project/dblatex/dblatex/dblatex-0.3.9/dblatex-0.3.9.tar.bz2"
+    mkdir -p $WGET_BUILD
+    cd $WGET_BUILD
+    curl $WGET_URL -L -s -o - | tar -xjf - -C $WGET_BUILD
+    # /mathrsfs/d is no longer available
+    sed -i "/mathrsfs/d" $WGET_BUILD/dblatex-0.3.9/latex/style/dbk_fonts.sty 
+    cd $WGET_BUILD/dblatex-0.3.9
+    patch -p1 < $BIN_DIR/20_xmultirow.patch
+    python setup.py install --prefix=$DBLATEX_HOME
+fi
+
+
+build-step "cleanup"
+rm -rf $TEXLIVE_HOME/texmf-dist/doc
+
+# Make sure the cache is empty
+rm -rf $TEXLIVE_CACHE/*
+
+# Store a copy of it in the cache so it doesn't have to be fetched again
+cp -R $TEXLIVE_HOME/* $TEXLIVE_CACHE/
+
+# Check for an essential binary to make sure it's installed
+if [ ! `which pdflatex` ]; then
+    build-warn "TeX Live installation failed"
+    exit 1
+fi
+
+# Set up the environment for runtimes now that compilation has finished
+echo 'export PATH=$HOME/.texlive/bin/x86_64-linux:$PATH' >> $PROFILE_D
