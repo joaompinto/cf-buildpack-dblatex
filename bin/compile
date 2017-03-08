@@ -112,15 +112,43 @@ if [ ! `which dblatex` ]; then
     cp -v $BIN_DIR/../dblatex $DBLATEX_HOME/bin
 fi
 
+if [ ! `which xsltproc` ]; then
+  
+    build-step "Installing libxml2"
+
+    WGET_URL="ftp://xmlsoft.org/libxslt/libxml2-2.9.4.tar.gz"
+    mkdir -p $WGET_BUILD
+    curl $WGET_URL -L -s -o - | tar -xzf - -C $WGET_BUILD
+    cd $WGET_BUILD/libxml2-2.9.4
+    ./configure --without-python --prefix=$DBLATEX_HOME
+    make install
+    #cp $WGET_BUILD/libxml2-2.9.4/xml2-config $DBLATEX_HOME/bin
+    #cp -a $WGET_BUILD/libxml2-2.9.4/include $DBLATEX_HOME
+
+    build-step "Installing libxslt"
+    WGET_URL="ftp://xmlsoft.org/libxslt/libxslt-1.1.29.tar.gz"
+    mkdir -p $WGET_BUILD
+    cd $WGET_BUILD
+    curl $WGET_URL -L -s -o - | tar -xzf - -C $WGET_BUILD
+    # /mathrsfs/d is no longer available
+    cd $WGET_BUILD/libxslt-1.1.29
+    ./configure --prefix=$DBLATEX_HOME
+    make install
+fi
+
+
 
 build-step "cleanup"
 rm -rf $TEXLIVE_HOME/texmf-dist/doc
 
 # Make sure the cache is empty
 rm -rf $TEXLIVE_CACHE/*
+rm -rf $DBLATEX_CACHE/*
 
 # Store a copy of it in the cache so it doesn't have to be fetched again
 cp -R $TEXLIVE_HOME/* $TEXLIVE_CACHE/
+cp -R $DBLATEX_HOME/* $DBLATEX_CACHE/
+
 
 # Check for an essential binary to make sure it's installed
 if [ ! `which pdflatex` ]; then
