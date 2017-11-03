@@ -2,7 +2,7 @@
 # bin/compile <build-dir> <cache-dir>
 
 # fail fast
-set -eu
+set -u
 
 BUILD_DIR=$1
 CACHE_DIR=$2
@@ -146,8 +146,12 @@ rm -rf $TEXLIVE_CACHE/*
 rm -rf $DBLATEX_CACHE/*
 
 # Store a copy of it in the cache so it doesn't have to be fetched again
-cp -R $TEXLIVE_HOME/* $TEXLIVE_CACHE/
-cp -R $DBLATEX_HOME/* $DBLATEX_CACHE/
+if [ "$(ls -A $TEXLIVE_HOME)" ]; then
+   cp -R $TEXLIVE_HOME/* $TEXLIVE_CACHE/
+fi
+if [ "$(ls -A $DBLATEX_HOME)" ]; then
+   cp -R $DBLATEX_HOME/* $DBLATEX_CACHE/
+fi
 
 
 # Check for an essential binary to make sure it's installed
